@@ -1,0 +1,47 @@
+# =============================================================================
+#  Line-ending lock
+#
+#  This machine has core.autocrlf=true set SYSTEM-wide (the Windows default),
+#  so without this file git would hand every clone CRLF versions of these
+#  files. That is not cosmetic here - it breaks the container:
+#
+#    scripts/entrypoint.sh   CRLF  ->  sh: $'\r': command not found,
+#                                      container exits before nginx starts
+#    litestream/restore.sh   CRLF  ->  litestream never restores
+#    restic/backup.sh        CRLF  ->  backups silently never run
+#
+#  eol=lf pins the WORKING COPY to LF regardless of the host OS, so the bytes
+#  Docker sends as build context are the same on Windows, macOS or Linux.
+#  (Verified: all .sh and the Dockerfile currently hold LF=nn, CRLF=0.)
+#
+#  start.bat is the single deliberate exception - cmd.exe needs CRLF or it
+#  misparses labels and goto targets.
+# =============================================================================
+
+# default: normalise to LF in the repo, let git pick on checkout
+*                  text=auto
+
+# must be LF everywhere, no exceptions
+*.sh               text eol=lf
+Dockerfile         text eol=lf
+*.yml              text eol=lf
+*.yaml             text eol=lf
+*.conf             text eol=lf
+*.ini              text eol=lf
+*.html             text eol=lf
+*.md               text eol=lf
+.gitignore         text eol=lf
+.dockerignore      text eol=lf
+.gitattributes     text eol=lf
+.env.example       text eol=lf
+litestream.yml     text eol=lf
+
+# must be CRLF - cmd.exe reads these
+*.bat              text eol=crlf
+*.cmd              text eol=crlf
+
+# binary, never touch
+*.png              binary
+*.jpg              binary
+*.ico              binary
+*.zip              binary
