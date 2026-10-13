@@ -1,0 +1,47 @@
+# Git ignore rules.
+# The single most important rule here is: never commit a real secret.
+
+# ---- secrets -------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+secrets/
+
+# Nothing password-shaped may ever enter git. The container generates the
+# HTTP password file at runtime from the BASIC_AUTH_PASSWORD secret, so a
+# committed copy would only be a liability (it can be cracked offline).
+htpasswd
+htpasswd.*
+**/.htpasswd
+*.htpasswd
+
+# ---- runtime data (HF gives a fresh disk on every boot anyway) -----------
+app/data/
+app/logs/
+data/
+logs/
+
+# ---- backup artefacts ----------------------------------------------------
+restic-cache/
+*.restic
+*.ltx
+*.bak
+
+# ---- local scratch -------------------------------------------------------
+*.log
+*.pid
+*.tmp
+*.swp
+*~
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# ---- reference clones (NOT part of this Space) --------------------------
+# A nested .git directory inside a pushed repo confuses Hugging Face's
+# builder, so any locally cloned reference implementation stays local only.
+sher-pocketbase/
+**/sher-pocketbase/

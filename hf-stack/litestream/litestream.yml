@@ -1,0 +1,54 @@
+# =============================================================================
+#  Litestream - real-time SQLite replication to Backblaze B2
+#
+#  ⚠️  SYNTAX NOTE (this is the part most tutorials get wrong)
+#      Litestream v0.3 used:   replicas:  (plural) + endpoint:/access-key-id:
+#                                inside the replica block
+#      Litestream v0.5 needs:  replica:   (SINGULAR) + one s3:// URL that
+#                                already contains host, bucket and path
+#      Copying a v0.3 config into v0.5 fails to parse.
+#
+#  Credentials are NOT written here. Litestream reads them from the
+#  environment as LITESTREAM_ACCESS_KEY_ID / LITESTREAM_SECRET_ACCESS_KEY,
+#  which the entrypoint exports from the Space secrets.
+# =============================================================================
+
+access-key-id:     "${LITESTREAM_ACCESS_KEY_ID}"
+secret-access-key: "${LITESTREAM_SECRET_ACCESS_KEY}"
+
+dbs:
+  - path: /app/data/pocketbase/data.db
+    replica:
+      url: "s3://${B2_ENDPOINT}/${B2_BUCKET}/litestream/pocketbase"
+
+  - path: /app/data/miniflux/miniflux.db
+    replica:
+      url: "s3://${B2_ENDPOINT}/${B2_BUCKET}/litestream/miniflux"
+
+  # Chhoto URL (WAL mode is on - litestream needs WAL anyway, and the project
+  # docs recommend it too). Short links are low-stakes data, so the automatic
+  # point-in-time restore here is a feature and not a hazard.
+  - path: /app/data/chhoto/urls.sqlite
+    replica:
+      url: "s3://${B2_ENDPOINT}/${B2_BUCKET}/litestream/chhoto"
+
+  # ---------------------------------------------------------------------------
+  #  NEVER add Vaultwarden here.
+  #  Litestream restores the newest replica AUTOMATICALLY at every container
+  #  boot. For a password manager that means a restart can silently roll your
+  #  vault back to an earlier snapshot and drop every password added since.
+  #  Vaultwarden is backed up by restic instead (restic/backup.sh), which only
+  #  ever writes a copy - it never overwrites the live database by itself, so
+  #  a restore is always a deliberate act you perform.
+  # ---------------------------------------------------------------------------
+
+# OpenList is added by hand after first boot, because its database path is
+# only known once the app has created it:
+#
+#   - path: /app/data/openlist/data/data.db
+#     replica:
+#       url: "s3://${B2_ENDPOINT}/${B2_BUCKET}/litestream/openlist"
+#
+# ⚠️ NEVER add Vaultwarden here. Vaultwarden keeps its encryption keys in
+# the same SQLite file, so restoring an older snapshot can leave the vault
+# permanently undecryptable. It uses PostgreSQL instead.

@@ -1,0 +1,41 @@
+name: Keep the Space awake
+
+# Hugging Face free Spaces sleep after 48h with no HTTP traffic. When that
+# happens the container is torn down and the (ephemeral) disk is wiped.
+# Pinging /health every 15 minutes keeps the timer from ever resetting.
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping the Space
+        env:
+          # Repository variable -> Settings -> Secrets and variables -> Actions
+          SPACE_HOST: ${{ vars.SPACE_HOST }}
+        run: |
+          if [ -z "${SPACE_HOST}" ]; then
+            echo "::notice::Set repository variable SPACE_HOST (e.g. you-stack.hf.space)"
+            exit 0
+          fi
+
+          URL="https://${SPACE_HOST}/health"
+          CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 180 "$URL" || echo "000")
+
+          case "$CODE" in
+            200)
+              echo "OK   $URL -> 200" ;;
+            000)
+              # timeout: expected on a cold wake-up, the pod takes 30-90s
+              echo "::notice::$URL timed out - the Space may be waking up (this is fine)" ;;
+            *)
+              echo "::warning::$URL -> HTTP $CODE" ;;
+          esac
+
+      - name: Summary
+        if: always()
+        run: echo "keep-alive check finished"

@@ -1,0 +1,119 @@
+# =============================================================================
+#  Private Cloud Stack - run it on YOUR OWN PC
+#
+#  HF ab free me Docker Spaces nahi deta (PRO $9/mo chahiye), isliye stack
+#  seedha tere computer pe chalta hai. Dockerfile wahi hai jo HF ke liye tha -
+#  ek bhi app config nahi badli.
+#
+#  START:
+#      docker compose up -d
+#
+#  THEN open:   http://localhost:7860
+#
+#  STOP:
+#      docker compose down
+# =============================================================================
+
+services:
+  stack:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    container_name: private-cloud-stack
+    restart: unless-stopped
+
+    ports:
+      # HF ke liye sirf 7860 kholna padta tha. Apne PC pe bhi wahi - taaki
+      # nginx ke peeche wale apps (8090/5244/8080/4567/8222) BAHAR se kabhi
+      # directly na dikhen. Wahi "single public port" security.
+      - "7860:7860"
+
+    environment:
+      # ---- PUBLIC HOST ---------------------------------------------------
+      # Ye wahi jagah hai jahan se tu app khol raha hai, bina https:// aur
+      # bina trailing slash.
+      #
+      #   Sirf apne PC pe  ->  localhost:7860
+      #   Phone/Internet   ->  apna tunnel URL, jaise xyz.trycloudflare.com
+      #
+      # Sab apps (PocketBase/OpenList/Miniflux/Vaultwarden/Chhoto) isi se
+      # apne links banate hain. Galat daaloge to pages blank dikhenge.
+      SPACE_HOST: ${SPACE_HOST:-localhost:7860}
+
+      # http ya https - apps isi se apne links banate hain.
+      # Local pe http hai (localhost:7860 par koi TLS nahi). Cloudflare tunnel
+      # ya kisi bhi HTTPS proxy ke peeche ise https kar dena, warna PocketBase
+      # ke assets 404 honge aur apps galat links banate hain.
+      URL_SCHEME: ${URL_SCHEME:-http}
+
+      # ---- HTTP PASSWORD GATE --------------------------------------------
+      # Sab kuch (/health ke alawa) isi password ke peeche hai.
+      # .env me BASIC_AUTH_PASSWORD daal do. Agar chhoda to container ek
+      # RANDOM bana dega aur boot log me ek baar print karega.
+      BASIC_AUTH_USER: ${BASIC_AUTH_USER:-admin}
+      BASIC_AUTH_PASSWORD: ${BASIC_AUTH_PASSWORD:-}
+
+      # ---- CHHOTO URL KA APNA PASSWORD -----------------------------------
+      # Defence-in-depth: ye chhoto-url ke APNE login ke liye hai, stack ke
+      # basic auth ke alawa. Chhoda to container random bana dega aur boot
+      # log me ek baar print karega.
+      # Sirf A-Za-z0-9 aur 16+ chars - supervisord `environment=` line
+      # comma-separated KEY="value" parse karta hai, usme comma/quote
+      # aaya to aage ki saari variables gir jaati hain.
+      CHHOTO_PASSWORD: ${CHHOTO_PASSWORD:-}
+
+      # ---- VAULTWARDEN SIGNUPS -------------------------------------------
+      # true  -> koi bhi /vw/ pe naya account bana sakta hai
+      # false -> SIRF tumhara account, koi aur register nahi kar paayega
+      # Apna ek account banaate hi FALSE kar do aur restart. Warna koi bhi
+      # jo URL dhoondh le, tumhare vault pe apna login bana lega.
+      # (Data end-to-end encrypted rehta hai, par server fir bhi tumhara hai.)
+      VW_SIGNUPS: ${VW_SIGNUPS:-true}
+
+      # ---- MINIFLUX DATABASE (OPTIONAL) ----------------------------------
+      # Miniflux ko PostgreSQL chahiye - embedded DB nahi hai. Ye free hai:
+      #   https://neon.tech  ->  free plan  ->  connection string copy karo
+      #   ?sslmode=require end me zaroor jodna.
+      # Chhoda to /rss/ band rahega, baki sab apps theek chalenge.
+      DATABASE_URL_MINIFLUX: ${DATABASE_URL_MINIFLUX:-}
+
+      # ---- BACKUPS TO BACKBLAZE B2 (OPTIONAL) ----------------------------
+      # Agar chhoda to koi backup nahi hoga - apps normal chalenge.
+      # Ye 4 values .env me daalni hain.
+      B2_KEY_ID: ${B2_KEY_ID:-}
+      B2_APP_KEY: ${B2_APP_KEY:-}
+      B2_ENDPOINT: ${B2_ENDPOINT:-}
+      B2_BUCKET: ${B2_BUCKET:-}
+
+    volumes:
+      # NAMED volumes use kar rahe hain, bind mounts (./data) NAHI.
+      #
+      # Wajah: Docker Desktop on Windows me bind-mount ki hui folder par
+      # container UID 1000 ko aksar "permission denied" milta hai, aur
+      # SQLite (PocketBase) crash kar jata hai. Named volume pe Docker
+      # image ke sahi permissions copy kar deta hai - isliye chalta hai.
+      #
+      # Data yahan save hota hai - `docker compose down` se NAHI mit-ta.
+      # Sirf `docker compose down -v` mitata hai (toh mat karna).
+      #
+      # Dekhna ho to:
+      #      docker volume ls
+      #      docker run --rm -v pvtcloud_pocketbase:/x alpine ls -la /x
+      - pvtcloud_pocketbase:/app/data/pocketbase
+      - pvtcloud_openlist:/app/data/openlist
+      - pvtcloud_miniflux:/app/data/miniflux
+      - pvtcloud_chhoto:/app/data/chhoto
+      - pvtcloud_vaultwarden:/app/data/vaultwarden
+
+# Named volumes declare karna zaroori hai - warna Docker unhe random naam
+# bana deta hai jo har project me alag hote hain.
+volumes:
+  pvtcloud_pocketbase:
+  pvtcloud_openlist:
+  pvtcloud_miniflux:
+  pvtcloud_chhoto:
+  pvtcloud_vaultwarden:
+
+    # Container ke andar sab kuch non-root (UID 1000) hai - Dockerfile me
+    # USER user likha hai. Yahan dobara set karne ki zaroorat nahi.

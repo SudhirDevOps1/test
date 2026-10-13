@@ -1,0 +1,44 @@
+<!doctype html>
+<!--
+  Root index, served from DISK rather than nginx's `return 200 '...'`.
+
+  Why it is a file and not a `return`:
+  `return` is handled by the rewrite phase, which runs BEFORE the access
+  phase where auth_basic lives. A location that says
+
+      auth_basic "Private Stack";
+      return 200 '<html>...';
+
+  therefore serves that HTML to anyone who asks, with no password prompt -
+  verified: `return`+auth returned 200 while `try_files`+auth and
+  `proxy_pass`+auth both returned 401 for the identical auth directives.
+
+  Serving a real file puts the response in the content phase, after access,
+  so the password gate actually applies.
+-->
+<meta charset="utf-8">
+<title>Private Stack</title>
+<style>
+  body {
+    font: 16px system-ui;
+    max-width: 34rem;
+    margin: 4rem auto;
+    padding: 0 1rem;
+  }
+  a {
+    display: block;
+    padding: .7rem 1rem;
+    margin: .4rem 0;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    text-decoration: none;
+    color: #111;
+  }
+  a:hover { background: #f7f7f7; }
+</style>
+<h1>Private Stack</h1>
+<a href="/pb/">PocketBase</a>
+<a href="/files/">OpenList</a>
+<a href="/rss/">Miniflux</a>
+<a href="/vw/">Vaultwarden</a>
+<a href="/s/">Chhoto URL</a>

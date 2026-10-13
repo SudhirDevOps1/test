@@ -1,0 +1,36 @@
+# Build context exclusions.
+# Keeps the image small and stops runtime data / secrets from being baked in.
+
+.git
+.github
+.gitignore
+.env
+.env.*
+*.example
+
+# runtime data - must never end up inside the image
+app/data
+app/logs
+data
+logs
+**/data
+**/logs
+
+# local artefacts
+*.log
+*.pid
+restic-cache
+*.restic
+*.ltx
+
+# reference clones - never enter the build context
+sher-pocketbase/
+**/sher-pocketbase/
+
+# editors / OS
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+*.swp
+*~
